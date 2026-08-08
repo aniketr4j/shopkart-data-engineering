@@ -31,6 +31,16 @@ CREATE TABLE IF NOT EXISTS orders (
 """
 cursor.execute(create_table_query)
 
+create_sales_query = """
+CREATE TABLE IF NOT EXISTS daily_sales (
+    order_date date,
+    total_orders integer,
+    total_revenue numeric(10, 2),
+    average_order_value numeric(10, 2)
+) """
+
+cursor.execute(create_sales_query)
+
 insert_query = """
 INSERT INTO orders (
     order_id, 
@@ -48,12 +58,14 @@ INSERT INTO orders (
     
 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 """
-first_row = df.iloc[0]
+insert_sales_query = """
+INSERT INTO daily_sales (
+    order_date,
+    total_orders,
+    total_revenue,
+    average_order_value
+) SELECT order_date, count(*) as total_orders, sum(total_amount) as total_revenue, avg(total_amount) as average_order_value from orders group by order_date;"""
 
-# values = [
-#     value.item() if hasattr(value, "item") else value
-#     for value in first_row
-# ]
 rows = []
 
 for _, row in df.iterrows():
@@ -62,7 +74,10 @@ for _, row in df.iterrows():
         for value in row
     ]
     rows.append(tuple(values))
+cursor.execute("TRUNCATE TABLE orders;")
+cursor.execute("TRUNCATE TABLE daily_sales;")
 cursor.executemany(insert_query, rows)
+cursor.execute(insert_sales_query)
 
 conn.commit()
 
