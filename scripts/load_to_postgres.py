@@ -97,7 +97,7 @@ INSERT INTO orders (
     order_date,
     delivery_days
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) on conflict (order_id) do nothing;
 """
 
 
@@ -160,7 +160,6 @@ for _, row in df.iterrows():
 # 10. Clear previous data
 # --------------------------------------------------
 
-cursor.execute("TRUNCATE TABLE orders;")
 cursor.execute("TRUNCATE TABLE daily_sales;")
 cursor.execute("TRUNCATE TABLE city_revenue;")
 
