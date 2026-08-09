@@ -1,9 +1,19 @@
 import pandas as pd  # type: ignore[import-not-found]
 import psycopg2  # type: ignore[import-not-found]
 
+
+# --------------------------------------------------
+# 1. Load CSV
+# --------------------------------------------------
+
 df = pd.read_csv("data/orders.csv")
 
 print(f"Loaded {len(df)} orders from CSV.")
+
+
+# --------------------------------------------------
+# 2. Connect to PostgreSQL
+# --------------------------------------------------
 
 conn = psycopg2.connect(
     host="localhost",
@@ -12,6 +22,11 @@ conn = psycopg2.connect(
 )
 
 cursor = conn.cursor()
+
+
+# --------------------------------------------------
+# 3. Create orders table
+# --------------------------------------------------
 
 create_table_query = """
 CREATE TABLE IF NOT EXISTS orders (
@@ -29,59 +44,162 @@ CREATE TABLE IF NOT EXISTS orders (
     delivery_days INTEGER
 );
 """
+
 cursor.execute(create_table_query)
+
+
+# --------------------------------------------------
+# 4. Create daily_sales table
+# --------------------------------------------------
 
 create_sales_query = """
 CREATE TABLE IF NOT EXISTS daily_sales (
-    order_date date,
-    total_orders integer,
-    total_revenue numeric(10, 2),
-    average_order_value numeric(10, 2)
-) """
+    order_date DATE,
+    total_orders INTEGER,
+    total_revenue NUMERIC(10, 2),
+    average_order_value NUMERIC(10, 2)
+);
+"""
 
 cursor.execute(create_sales_query)
 
+
+# --------------------------------------------------
+# 5. Create city_revenue table
+# --------------------------------------------------
+
+create_city_revenue_query = """
+CREATE TABLE IF NOT EXISTS city_revenue (
+    city VARCHAR(50),
+    revenue NUMERIC(12, 2)
+);
+"""
+
+cursor.execute(create_city_revenue_query)
+
+
+# --------------------------------------------------
+# 6. Insert orders query
+# --------------------------------------------------
+
 insert_query = """
 INSERT INTO orders (
-    order_id, 
+    order_id,
     customer_id,
-    customer_name, 
-    product, 
-    category, 
-    quantity, 
-    unit_price, 
-    total_amount, 
-    city, 
-    payment_method, 
-    order_date, 
+    customer_name,
+    product,
+    category,
+    quantity,
+    unit_price,
+    total_amount,
+    city,
+    payment_method,
+    order_date,
     delivery_days
-    
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 """
+
+
+# --------------------------------------------------
+# 7. Daily sales transformation
+# --------------------------------------------------
+
 insert_sales_query = """
 INSERT INTO daily_sales (
     order_date,
     total_orders,
     total_revenue,
     average_order_value
-) SELECT order_date, count(*) as total_orders, sum(total_amount) as total_revenue, avg(total_amount) as average_order_value from orders group by order_date;"""
+)
+SELECT
+    order_date,
+    COUNT(*) AS total_orders,
+    SUM(total_amount) AS total_revenue,
+    AVG(total_amount) AS average_order_value
+FROM orders
+GROUP BY order_date;
+"""
+
+
+# --------------------------------------------------
+# 8. City revenue transformation
+# --------------------------------------------------
+
+insert_city_revenue_query = """
+INSERT INTO city_revenue (
+    city,
+    revenue
+)
+SELECT
+    city,
+    SUM(total_amount) AS revenue
+FROM orders
+GROUP BY city
+ORDER BY revenue DESC;
+"""
+
+
+# --------------------------------------------------
+# 9. Convert DataFrame rows
+# --------------------------------------------------
 
 rows = []
 
 for _, row in df.iterrows():
+
     values = [
         value.item() if hasattr(value, "item") else value
         for value in row
     ]
+
     rows.append(tuple(values))
+
+
+# --------------------------------------------------
+# 10. Clear previous data
+# --------------------------------------------------
+
 cursor.execute("TRUNCATE TABLE orders;")
 cursor.execute("TRUNCATE TABLE daily_sales;")
+cursor.execute("TRUNCATE TABLE city_revenue;")
+
+
+# --------------------------------------------------
+# 11. Load orders
+# --------------------------------------------------
+
 cursor.executemany(insert_query, rows)
+
+
+# --------------------------------------------------
+# 12. Create daily sales analytics
+# --------------------------------------------------
+
 cursor.execute(insert_sales_query)
 
+
+# --------------------------------------------------
+# 13. Create city revenue analytics
+# --------------------------------------------------
+
+cursor.execute(insert_city_revenue_query)
+
+
+# --------------------------------------------------
+# 14. Commit changes
+# --------------------------------------------------
+
 conn.commit()
+
+
+# --------------------------------------------------
+# 15. Close connection
+# --------------------------------------------------
 
 cursor.close()
 conn.close()
 
-print("Orders table created successfully!")
+
+print("Orders and analytics tables loaded successfully!")
+
