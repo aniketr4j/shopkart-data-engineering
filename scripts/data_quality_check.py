@@ -1,54 +1,77 @@
 from pathlib import Path
 import pandas as pd
 
-# Project root
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Read CSV
-file_path = BASE_DIR / "data" / "orders.csv"
+def validate_data(df):
 
-df = pd.read_csv(file_path)
+    valid_rows = []
+    invalid_rows = []
 
-print("=" * 60)
-print("SHOPKART DATA QUALITY REPORT")
-print("=" * 60)
+    for _, row in df.iterrows():
 
-print("\n1. First 5 Rows")
-print(df.head())
+        errors = []
 
-print("\n2. Dataset Shape")
-print(df.shape)
+        if row["quantity"] < 1 or row["quantity"] > 5:
+            errors.append("Invalid quantity")
 
-print("\n3. Column Names")
-print(df.columns.tolist())
+        if row["unit_price"] <= 0:
+            errors.append("Invalid unit price")
 
-print("\n4. Data Types")
-print(df.dtypes)
+        if row["delivery_days"] < 1 or row["delivery_days"] > 7:
+            errors.append("Invalid delivery days")
 
-print("\n5. Missing Values")
-print(df.isnull().sum())
+        calculated_total_amount = (
+            row["quantity"] * row["unit_price"]
+        )
 
-print("\n6. Duplicate Rows")
-print(df.duplicated().sum())
+        if abs(
+            row["total_amount"] - calculated_total_amount
+        ) > 0.01:
+            errors.append("Mismatched total amount")
 
-print("\n7. Summary Statistics")
-print(df.describe())
+        if errors:
+            row["error_reason"] = "; ".join(errors)
+            invalid_rows.append(row)
+        else:
+            valid_rows.append(row)
 
-print("\n--- Total Amount Check ---")
-df["calculated_total_amount"] = df["quantity"] * df["unit_price"]
-mismatched_total_amount = (df["total_amount"] != df["calculated_total_amount"]).sum()
+    valid_df = pd.DataFrame(valid_rows)
+    invalid_df = pd.DataFrame(invalid_rows)
 
-print(f"Number of mismatched total amounts: {mismatched_total_amount}")
-print("\n--- Quantity Validation ---")
-invalid_quantity = df[(df["quantity"] < 1) | (df["quantity"] > 5)]
-print(f"Number of invalid quantities: {len(invalid_quantity)}")
+    return valid_df, invalid_df
 
-print("\n --- Price Validation ---")
-invalid_price = df[df["unit_price"] <= 0]
-print(f"Number of invalid prices: {len(invalid_price)}")
 
-print("\n --- Delivery Validation ---")
-invalid_delivery = df[(df["delivery_days"]< 1) | (df["delivery_days"] > 7)]
-print(f"Number of invalid delivery days: {len(invalid_delivery)}")
+if __name__ == "__main__":
 
-print("=" * 60)
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+    file_path = BASE_DIR / "data" / "new_orders.csv"
+
+    df = pd.read_csv(file_path)
+
+    valid_df, invalid_df = validate_data(df)
+
+    print("=" * 60)
+    print("SHOPKART DATA QUALITY REPORT")
+    print("=" * 60)
+
+    print(f"Number of valid rows: {len(valid_df)}")
+    print(f"Number of invalid rows: {len(invalid_df)}")
+
+    if len(invalid_df) > 0:
+
+        rejected_file = (
+            BASE_DIR / "data" / "rejected_orders.csv"
+        )
+
+        invalid_df.to_csv(
+            rejected_file,
+            index=False
+        )
+
+        print(
+            f"Rejected records saved to: {rejected_file}"
+        )
+
+    else:
+        print("No invalid records found.")

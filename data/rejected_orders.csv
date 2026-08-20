@@ -1,0 +1,2 @@
+order_id,customer_id,customer_name,product,category,quantity,unit_price,total_amount,city,payment_method,order_date,delivery_days,error_reason
+10002,12346,Bad Test Customer,Mouse,Electronics,-2,1000,-2000,Delhi,UPI,2026-08-09,3,Invalid quantity

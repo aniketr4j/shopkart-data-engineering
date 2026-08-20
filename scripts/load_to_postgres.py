@@ -30,7 +30,7 @@ cursor = conn.cursor()
 
 create_table_query = """
 CREATE TABLE IF NOT EXISTS orders (
-    order_id INTEGER,
+    order_id INTEGER PRIMARY KEY,
     customer_id INTEGER,
     customer_name VARCHAR(100),
     product VARCHAR(50),
@@ -54,7 +54,7 @@ cursor.execute(create_table_query)
 
 create_sales_query = """
 CREATE TABLE IF NOT EXISTS daily_sales (
-    order_date DATE,
+    order_date DATE PRIMARY KEY,
     total_orders INTEGER,
     total_revenue NUMERIC(10, 2),
     average_order_value NUMERIC(10, 2)
@@ -70,7 +70,7 @@ cursor.execute(create_sales_query)
 
 create_city_revenue_query = """
 CREATE TABLE IF NOT EXISTS city_revenue (
-    city VARCHAR(50),
+    city VARCHAR(50) PRIMARY KEY,
     revenue NUMERIC(12, 2)
 );
 """
@@ -97,7 +97,11 @@ INSERT INTO orders (
     order_date,
     delivery_days
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) on conflict (order_id) do nothing;
+VALUES (
+    %s, %s, %s, %s, %s, %s,
+    %s, %s, %s, %s, %s, %s
+)
+ON CONFLICT (order_id) DO NOTHING;
 """
 
 
@@ -114,11 +118,16 @@ INSERT INTO daily_sales (
 )
 SELECT
     order_date,
-    COUNT(*) AS total_orders,
-    SUM(total_amount) AS total_revenue,
-    AVG(total_amount) AS average_order_value
+    COUNT(*),
+    SUM(total_amount),
+    AVG(total_amount)
 FROM orders
-GROUP BY order_date;
+GROUP BY order_date
+ON CONFLICT (order_date)
+DO UPDATE SET
+    total_orders = EXCLUDED.total_orders,
+    total_revenue = EXCLUDED.total_revenue,
+    average_order_value = EXCLUDED.average_order_value;
 """
 
 
@@ -133,10 +142,12 @@ INSERT INTO city_revenue (
 )
 SELECT
     city,
-    SUM(total_amount) AS revenue
+    SUM(total_amount)
 FROM orders
 GROUP BY city
-ORDER BY revenue DESC;
+ON CONFLICT (city)
+DO UPDATE SET
+    revenue = EXCLUDED.revenue;
 """
 
 
@@ -157,7 +168,7 @@ for _, row in df.iterrows():
 
 
 # --------------------------------------------------
-# 10. Clear previous data
+# 10. Clear previous analytics data
 # --------------------------------------------------
 
 cursor.execute("TRUNCATE TABLE daily_sales;")
@@ -198,7 +209,6 @@ conn.commit()
 
 cursor.close()
 conn.close()
-
 
 print("Orders and analytics tables loaded successfully!")
 

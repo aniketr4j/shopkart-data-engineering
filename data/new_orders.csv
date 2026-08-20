@@ -1,0 +1,8 @@
+order_id,customer_id,customer_name,product,category,quantity,unit_price,total_amount,city,payment_method,order_date,delivery_days
+10001,12345,Test Customer,Laptop,Electronics,1,50000,50000,Mumbai,UPI,2026-08-09,3
+10002,12346,Bad Test Customer,Mouse,Electronics,-2,1000,-2000,Delhi,UPI,2026-08-09,3
+10003,12347,New Test Customer,Phone,Electronics,2,30000,60000,Ahmedabad,UPI,2026-08-12,4
+10004,12348,Another Test Customer,Phone,Electronics,1,30000,30000,Pune,Credit Card,2026-08-12,5
+10005,12349,Pipeline Test Customer,Headphones,Electronics,2,5000,10000,Ahmedabad,UPI,2026-08-18,4
+10006,12350,Rollback Test Customer,Laptop,Electronics,1,55000,55000,Delhi,UPI,2026-08-19,3
+10007,12351,Rollback Test Customer,Laptop,Electronics,1,55000,55000,Delhi,UPI,2026-08-20,3
